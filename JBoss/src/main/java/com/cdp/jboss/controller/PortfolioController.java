@@ -1,0 +1,61 @@
+package com.cdp.jboss.controller;
+
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.enterprise.context.Conversation;
+import javax.enterprise.context.ConversationScoped;
+import javax.inject.Inject;
+import javax.inject.Named;
+
+import com.cdp.jboss.domain.Share;
+import com.cdp.jboss.domain.User;
+import com.cdp.jboss.domain.User.LoggedIn;
+import com.cdp.jboss.service.TradeService;
+
+@ConversationScoped @Named("portfolioController")
+public class PortfolioController implements Serializable {
+    
+    private static final long serialVersionUID = -3304517738187380600L;
+
+    Map<Share, Integer> sharesToBuy = new HashMap<Share, Integer>();
+
+    @Inject @LoggedIn
+    User user;
+
+    @Inject
+    private TradeService tradeService;
+    
+    @Inject
+    private Conversation conversation;
+    
+    public void buy(Share share, Integer amount) {
+        if (conversation.isTransient()) {
+            conversation.begin();
+        }
+        Integer currentAmount = sharesToBuy.get(share);
+        if (null == currentAmount) {
+            currentAmount = Integer.valueOf(0);
+        }
+        
+        sharesToBuy.put(share, currentAmount + amount); 
+    }
+
+    public void confirm() {
+        for (Map.Entry<Share, Integer> sharesAmount : sharesToBuy.entrySet()) {
+            tradeService.buy(user, sharesAmount.getKey(), sharesAmount.getValue());
+        }
+        conversation.end();
+    }
+    
+    public void cancel() {
+        sharesToBuy.clear();
+        conversation.end();
+    }
+    
+    public User getUser() {
+        return user;
+    }
+
+}
